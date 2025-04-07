@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/home_controller.dart';
@@ -96,7 +94,8 @@ class HomeView extends GetView<HomeController> {
                         return ListTile(
                           title: Text(fileName),
                           selected: isSelected,
-                          selectedTileColor: Colors.blue.withOpacity(0.1),
+                          selectedTileColor:
+                              Colors.blue.withValues(alpha: 0.1 * 255),
                           leading: Icon(
                             Icons.audio_file,
                             color: isSelected ? Colors.blue : Colors.grey,
