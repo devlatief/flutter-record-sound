@@ -54,32 +54,36 @@ class HomeController extends GetxController {
   }
 
   Future<String> _getRecordingPath() async {
-    Directory? directory;
-
     if (Platform.isAndroid) {
-      // Get the external storage directory for Android
-      directory = await getExternalStorageDirectory();
+      // Get the external storage directory for Android (public directory)
+      final directory = Directory('/storage/emulated/0/Music');
 
       // Create a specific folder for our app recordings if it doesn't exist
-      final appDir = Directory('${directory!.path}/AudioRecordings');
+      final appDir = Directory('${directory.path}/MyRecordings');
       if (!await appDir.exists()) {
         await appDir.create(recursive: true);
       }
-      directory = appDir;
+
+      // Use a fixed filename instead of timestamp
+      return '${appDir.path}/my_recording.m4a';
     } else {
       // For iOS and other platforms, use the documents directory
-      directory = await getApplicationDocumentsDirectory();
+      final directory = await getApplicationDocumentsDirectory();
+      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      return '${directory.path}/recording_$timestamp.m4a';
     }
-
-    // Generate a unique filename with timestamp
-    final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-    return '${directory.path}/recording_$timestamp.m4a';
   }
 
   Future<void> startRecording() async {
     try {
       if (await record.hasPermission()) {
         final path = await _getRecordingPath();
+
+        // Check if file exists and delete it
+        final file = File(path);
+        if (await file.exists()) {
+          await file.delete();
+        }
 
         await record.start(
           RecordConfig(
@@ -123,32 +127,37 @@ class HomeController extends GetxController {
 
   Future<void> loadRecordedFiles() async {
     try {
-      Directory? directory;
-
       if (Platform.isAndroid) {
-        directory = await getExternalStorageDirectory();
-        final appDir = Directory('${directory!.path}/AudioRecordings');
-        if (await appDir.exists()) {
-          directory = appDir;
-        } else {
-          return; // Directory doesn't exist yet
+        final directory = Directory('/storage/emulated/0/Music/MyRecordings');
+        if (await directory.exists()) {
+          final files = directory
+              .listSync()
+              .where((file) => file.path.endsWith('.m4a'))
+              .map((file) => file.path)
+              .toList();
+
+          recordedFiles.value = files;
+
+          // Set the file as selected if available
+          if (files.isNotEmpty) {
+            selectedFile.value = files.first;
+            audioPath.value = files.first;
+          }
         }
       } else {
-        directory = await getApplicationDocumentsDirectory();
-      }
+        final directory = await getApplicationDocumentsDirectory();
+        final files = directory
+            .listSync()
+            .where((file) => file.path.endsWith('.m4a'))
+            .map((file) => file.path)
+            .toList();
 
-      final files = directory
-          .listSync()
-          .where((file) => file.path.endsWith('.m4a'))
-          .map((file) => file.path)
-          .toList();
+        recordedFiles.value = files;
 
-      recordedFiles.value = files;
-
-      // Set the most recent file as selected if available
-      if (files.isNotEmpty) {
-        selectedFile.value = files.last;
-        audioPath.value = files.last;
+        if (files.isNotEmpty) {
+          selectedFile.value = files.last;
+          audioPath.value = files.last;
+        }
       }
     } catch (e) {
       Get.snackbar(
